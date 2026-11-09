@@ -48,16 +48,22 @@ fi
 
 sudo install -d -m 0755 "$STATE_DIR"
 sudo truncate -s 0 "${STATE_DIR}/new-packages"
+packages_to_install=()
 for package in "${PACKAGES[@]}"; do
   if ! dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'install ok installed'; then
+    packages_to_install+=("$package")
     printf '%s\n' "$package" | sudo tee -a "${STATE_DIR}/new-packages" >/dev/null
   fi
 done
 
-info "Refreshing package indexes..."
-sudo apt-get update
-info "Installing XFCE, XRDP, and audio support..."
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${PACKAGES[@]}"
+if ((${#packages_to_install[@]})); then
+  info "Refreshing package indexes..."
+  sudo apt-get update
+  info "Installing missing XFCE, XRDP, and audio support..."
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages_to_install[@]}"
+else
+  info "All required packages are already installed; skipping package installation."
+fi
 
 printf '%s\n' 'exec startxfce4' > "$SESSION_FILE"
 chmod 700 "$SESSION_FILE"
